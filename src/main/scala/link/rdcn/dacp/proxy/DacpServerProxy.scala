@@ -4,10 +4,16 @@ import link.rdcn.dacp.client.DacpClient
 import link.rdcn.dacp.provider.DataProvider
 import link.rdcn.dacp.receiver.DataReceiver
 import link.rdcn.dacp.server.{CookRequest, CookResponse, DacpServer}
+import link.rdcn.dacp.struct.{DataFrameDocument, DataFrameStatistics}
 import link.rdcn.dacp.user.{AuthProvider, DataOperationType}
-import link.rdcn.server.{GetRequest, GetResponse}
-import link.rdcn.struct.{DataFrame, DefaultDataFrame}
+import link.rdcn.server.{ActionRequest, ActionResponse, GetRequest, GetResponse}
+import link.rdcn.struct.ValueType.StringType
+import link.rdcn.struct.{DataFrame, DefaultDataFrame, StructType}
 import link.rdcn.user.{Credentials, UserPrincipal}
+import org.apache.jena.rdf.model.Model
+import org.json.{JSONArray, JSONObject}
+
+import java.io.StringWriter
 
 /**
  * DacpServer代理类，用于内外网隔离环境下的请求转发
@@ -39,6 +45,49 @@ class DacpServerProxy(
   override def doListHostInfo(): DataFrame = {
     internalClient.get(getBaseUrl() + "/listHostInfo")
   }
+
+  override def doAction(request: ActionRequest, response: ActionResponse): Unit = {
+    request.getActionName() match {
+      case name if name.startsWith("/getDataSetMetaData/") => {
+        val prefix: String = "/getDataSetMetaData/"
+        val dataSetModel: Model =
+          internalClient.getDataSetMetaData(name.replaceFirst(prefix, ""))
+        val writer = new StringWriter();
+        dataSetModel.write(writer, "RDF/XML");
+        response.send(writer.toString.getBytes("UTF-8"))
+
+      }
+      case name if name.startsWith("/getDocument/") =>
+        val prefix: String = "/getDocument/"
+        val dataFrameName: String = name.replaceFirst(prefix, "")
+        val dataFrameDocument: DataFrameDocument
+        = internalClient.getDocument(dataFrameName)
+        val schema = StructType.empty.add("url", StringType).add("alias", StringType).add("title", StringType).add("dataFrameTitle", StringType)
+        val stream =
+          getSchema(dataFrameName).columns.map(col => col.name).map(name => Seq(dataFrameDocument.getColumnURL(name).getOrElse("")
+              , dataFrameDocument.getColumnAlias(name).getOrElse(""), dataFrameDocument.getColumnTitle(name).getOrElse(""), dataFrameDocument.getDataFrameTitle().getOrElse("")))
+            .map(seq => link.rdcn.struct.Row.fromSeq(seq))
+        val ja = new JSONArray()
+        stream.map(_.toJsonObject(schema)).foreach(ja.put(_))
+        response.send(ja.toString().getBytes("UTF-8"))
+      case name if name.startsWith("/getStatistics/") =>
+        val prefix: String = "/getStatistics/"
+        val dataFrameName: String = name.replaceFirst(prefix, "")
+        val dataFrameStatistics: DataFrameStatistics =
+          internalClient.getStatistics(dataFrameName)
+        val jo = new JSONObject()
+        jo.put("byteSize", dataFrameStatistics.byteSize)
+        jo.put("rowCount", dataFrameStatistics.rowCount)
+        response.send(jo.toString().getBytes("UTF-8"))
+      case name if name.startsWith("getDataFrameSize") =>
+        val prefix: String = "/getDataFrameSize/"
+        val dataFrameSize: Long =
+          dataProvider.getDataStreamSource(name.replaceFirst(prefix, "")).rowCount
+        response.send(dataFrameSize.toString.getBytes("UTF-8"))
+      case otherPath => response.sendError(400, s"Action $otherPath Invalid")
+    }
+  }
+
 
   override def doGet(request: GetRequest, response: GetResponse): Unit = {
     request.getRequestURI() match {
