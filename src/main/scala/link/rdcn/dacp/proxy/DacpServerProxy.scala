@@ -1,5 +1,6 @@
 package link.rdcn.dacp.proxy
 
+import link.rdcn.dacp.FairdConfig
 import link.rdcn.dacp.client.DacpClient
 import link.rdcn.dacp.provider.DataProvider
 import link.rdcn.dacp.receiver.DataReceiver
@@ -8,7 +9,7 @@ import link.rdcn.dacp.struct.{DataFrameDocument, DataFrameStatistics}
 import link.rdcn.dacp.user.{AuthProvider, DataOperationType}
 import link.rdcn.server.{ActionRequest, ActionResponse, GetRequest, GetResponse}
 import link.rdcn.struct.ValueType.StringType
-import link.rdcn.struct.{DataFrame, DefaultDataFrame, StructType}
+import link.rdcn.struct.{DataFrame, DataStreamSource, DefaultDataFrame, StructType}
 import link.rdcn.user.{Credentials, UserPrincipal}
 import org.apache.jena.rdf.model.Model
 import org.json.{JSONArray, JSONObject}
@@ -29,8 +30,8 @@ class DacpServerProxy(
   private val internalClient: DacpClient = DacpClient.connect(targetServerUrl)
 
   override def doCook(request: CookRequest, response: CookResponse): Unit = {
-    var tranformer = request.getTransformTree
-    var schema = internalClient.getCookRows(tranformer.toJsonString)
+    val tranformer = request.getTransformTree
+    val schema = internalClient.getCookRows(tranformer.toJsonString)
     response.sendDataFrame(DefaultDataFrame(schema._1, schema._2))
   }
 
@@ -125,6 +126,31 @@ class DacpServerProxy(
   }
 }
 
+object DacpServerProxy{
+  def start(targetServerUrl: String, fairdConfig: FairdConfig): DacpServerProxy = {
+    val dacpServerProxy: DacpServerProxy = new DacpServerProxy(targetServerUrl, dataProvider, dataReceiver, new ProxyAuthorProvider)
+    dacpServerProxy.start(fairdConfig)
+    dacpServerProxy
+  }
+
+  private val dataProvider = new DataProvider {
+    override def listDataSetNames(): java.util.List[String] = ???
+
+    override def getDataSetMetaData(dataSetId: String, rdfModel: Model): Unit = ???
+
+    override def listDataFrameNames(dataSetId: String): java.util.List[String] = ???
+
+    override def getDataStreamSource(dataFrameName: String): DataStreamSource = ???
+
+    override def getDocument(dataFrameName: String): DataFrameDocument = ???
+
+    override def getStatistics(dataFrameName: String): DataFrameStatistics = ???
+  }
+  private val dataReceiver = new DataReceiver {
+    override def receive(dataFrame: DataFrame): Unit = ???
+  }
+}
+
 class ProxyAuthorProvider extends AuthProvider {
 
   override def authenticate(credentials: Credentials): UserPrincipal = ProxyUserPrincipal(credentials)
@@ -132,6 +158,4 @@ class ProxyAuthorProvider extends AuthProvider {
   override def checkPermission(user: UserPrincipal, dataFrameName: String, opList: List[DataOperationType]): Boolean = true
 }
 
-case class ProxyUserPrincipal(credentials: Credentials) extends UserPrincipal {
-
-}
+case class ProxyUserPrincipal(credentials: Credentials) extends UserPrincipal
