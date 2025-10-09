@@ -52,7 +52,7 @@ class DacpServerProxy(
       case name if name.startsWith("/getDataSetMetaData/") ||
         name.startsWith("/getDocument/") ||
         name.startsWith("/getStatistics/") ||
-        name.startsWith("/getDataFrameSize") =>
+        name.startsWith("/getDataFrameSize/") =>
         val resultBytes: Array[Byte] = internalClient.doAction(name)
         response.send(resultBytes)
       case otherPath => response.sendError(400, s"Action $otherPath Invalid")
