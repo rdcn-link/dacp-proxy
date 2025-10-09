@@ -55,6 +55,8 @@ class DacpServerProxy(
         name.startsWith("/getDataFrameSize/") =>
         val resultBytes: Array[Byte] = internalClient.doAction(name)
         response.send(resultBytes)
+      case name if name == "/getTargetServerUrl" =>
+        response.send(targetServerUrl.getBytes("UTF-8"))
       case otherPath => response.sendError(400, s"Action $otherPath Invalid")
     }
   }
