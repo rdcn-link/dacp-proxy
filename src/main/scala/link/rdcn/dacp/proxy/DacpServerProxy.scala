@@ -49,42 +49,12 @@ class DacpServerProxy(
 
   override def doAction(request: ActionRequest, response: ActionResponse): Unit = {
     request.getActionName() match {
-      case name if name.startsWith("/getDataSetMetaData/") => {
-        val prefix: String = "/getDataSetMetaData/"
-        val dataSetModel: Model =
-          internalClient.getDataSetMetaData(name.replaceFirst(prefix, ""))
-        val writer = new StringWriter();
-        dataSetModel.write(writer, "RDF/XML");
-        response.send(writer.toString.getBytes("UTF-8"))
-
-      }
-      case name if name.startsWith("/getDocument/") =>
-        val prefix: String = "/getDocument/"
-        val dataFrameName: String = name.replaceFirst(prefix, "")
-        val dataFrameDocument: DataFrameDocument
-        = internalClient.getDocument(dataFrameName)
-        val schema = StructType.empty.add("url", StringType).add("alias", StringType).add("title", StringType).add("dataFrameTitle", StringType)
-        val stream =
-          getSchema(dataFrameName).columns.map(col => col.name).map(name => Seq(dataFrameDocument.getColumnURL(name).getOrElse("")
-              , dataFrameDocument.getColumnAlias(name).getOrElse(""), dataFrameDocument.getColumnTitle(name).getOrElse(""), dataFrameDocument.getDataFrameTitle().getOrElse("")))
-            .map(seq => link.rdcn.struct.Row.fromSeq(seq))
-        val ja = new JSONArray()
-        stream.map(_.toJsonObject(schema)).foreach(ja.put(_))
-        response.send(ja.toString().getBytes("UTF-8"))
-      case name if name.startsWith("/getStatistics/") =>
-        val prefix: String = "/getStatistics/"
-        val dataFrameName: String = name.replaceFirst(prefix, "")
-        val dataFrameStatistics: DataFrameStatistics =
-          internalClient.getStatistics(dataFrameName)
-        val jo = new JSONObject()
-        jo.put("byteSize", dataFrameStatistics.byteSize)
-        jo.put("rowCount", dataFrameStatistics.rowCount)
-        response.send(jo.toString().getBytes("UTF-8"))
-      case name if name.startsWith("getDataFrameSize") =>
-        val prefix: String = "/getDataFrameSize/"
-        val dataFrameSize: Long =
-          dataProvider.getDataStreamSource(name.replaceFirst(prefix, "")).rowCount
-        response.send(dataFrameSize.toString.getBytes("UTF-8"))
+      case name if name.startsWith("/getDataSetMetaData/") ||
+        name.startsWith("/getDocument/") ||
+        name.startsWith("/getStatistics/") ||
+        name.startsWith("/getDataFrameSize") =>
+        val resultBytes: Array[Byte] = internalClient.doAction(name)
+        response.send(resultBytes)
       case otherPath => response.sendError(400, s"Action $otherPath Invalid")
     }
   }
