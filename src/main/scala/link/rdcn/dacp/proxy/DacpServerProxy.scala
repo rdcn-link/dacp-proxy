@@ -50,6 +50,7 @@ class DacpServerProxy(
   override def doAction(request: ActionRequest, response: ActionResponse): Unit = {
     request.getActionName() match {
       case name if name.startsWith("/getDataSetMetaData/") ||
+        name.startsWith("/getDataFrameMetaData/") ||
         name.startsWith("/getDocument/") ||
         name.startsWith("/getStatistics/") ||
         name.startsWith("/getDataFrameSize/") =>
