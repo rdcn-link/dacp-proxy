@@ -1,5 +1,6 @@
 package link.rdcn.dacp.proxy
 
+import link.rdcn.client.RemoteDataFrameProxy
 import link.rdcn.dacp.FairdConfig
 import link.rdcn.dacp.client.DacpClient
 import link.rdcn.dacp.provider.DataProvider
@@ -36,15 +37,15 @@ class DacpServerProxy(
   }
 
   override def doListDataSets(): DataFrame = {
-    internalClient.get(getBaseUrl() + "/listDataSets")
+    internalClient.get(targetServerUrl + "/listDataSets")
   }
 
   override def doListDataFrames(listDataFrameUrl: String): DataFrame = {
-    internalClient.get(getBaseUrl() + listDataFrameUrl)
+    internalClient.get(targetServerUrl + listDataFrameUrl)
   }
 
   override def doListHostInfo(): DataFrame = {
-    internalClient.get(getBaseUrl() + "/listHostInfo")
+    internalClient.get(targetServerUrl + "/listHostInfo")
   }
 
   override def doAction(request: ActionRequest, response: ActionResponse): Unit = {
@@ -94,7 +95,9 @@ class DacpServerProxy(
       case otherPath =>
         val userPrincipal = request.getUserPrincipal().asInstanceOf[ProxyUserPrincipal]
         val newClient: DacpClient = DacpClient.connect(targetServerUrl, userPrincipal.credentials)
-        response.sendDataFrame(newClient.get(getBaseUrl() + otherPath))
+        val df:RemoteDataFrameProxy = newClient.get(targetServerUrl + otherPath).asInstanceOf[RemoteDataFrameProxy]
+        response.sendDataFrame(DefaultDataFrame(df.schema,df.getRows(df.operation.toJsonString)._2))
+        println("end")
     }
   }
 }
