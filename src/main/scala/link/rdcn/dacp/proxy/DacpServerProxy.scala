@@ -9,13 +9,11 @@ import link.rdcn.dacp.server.{CookRequest, CookResponse, DacpServer}
 import link.rdcn.dacp.struct.{DataFrameDocument, DataFrameStatistics}
 import link.rdcn.dacp.user.{AuthProvider, DataOperationType}
 import link.rdcn.server.{ActionRequest, ActionResponse, GetRequest, GetResponse}
-import link.rdcn.struct.ValueType.StringType
 import link.rdcn.struct.{DataFrame, DataStreamSource, DefaultDataFrame, StructType}
 import link.rdcn.user.{Credentials, UserPrincipal}
 import org.apache.jena.rdf.model.Model
-import org.json.{JSONArray, JSONObject}
 
-import java.io.StringWriter
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * DacpServer代理类，用于内外网隔离环境下的请求转发
@@ -28,9 +26,19 @@ class DacpServerProxy(
                      ) extends DacpServer(dataProvider, dataReceiver, authProvider) {
 
   // 内部客户端，用于连接目标 DacpServer
-  private val internalClient: DacpClient = DacpClient.connect(targetServerUrl)
+  private val clientCache = new ConcurrentHashMap[Credentials, DacpClient]()
+  private def getInternalClient(credentials: Credentials): DacpClient = {
+    if(clientCache.contains(credentials)) clientCache.get(credentials)
+    else {
+      val client = DacpClient.connect(targetServerUrl, credentials)
+      clientCache.put(credentials, client)
+      client
+    }
+  }
 
   override def doCook(request: CookRequest, response: CookResponse): Unit = {
+    val internalClient = getInternalClient(request.getRequestUserPrincipal()
+      .asInstanceOf[ProxyUserPrincipal].credentials)
     val tranformer = request.getTransformTree
     val schema = internalClient.getCookRows(tranformer.toJsonString)
     response.sendDataFrame(DefaultDataFrame(schema._1, schema._2))
@@ -49,6 +57,8 @@ class DacpServerProxy(
   }
 
   override def doAction(request: ActionRequest, response: ActionResponse): Unit = {
+    val internalClient = getInternalClient(request.getUserPrincipal()
+      .asInstanceOf[ProxyUserPrincipal].credentials)
     request.getActionName() match {
       case name if name.startsWith("/getDataSetMetaData/") ||
         name.startsWith("/getDataFrameMetaData/") ||
@@ -65,10 +75,12 @@ class DacpServerProxy(
 
 
   override def doGet(request: GetRequest, response: GetResponse): Unit = {
+    val internalClient = getInternalClient(request.getUserPrincipal()
+      .asInstanceOf[ProxyUserPrincipal].credentials)
     request.getRequestURI() match {
       case "/listDataSets" =>
         try {
-          response.sendDataFrame(doListDataSets())
+          response.sendDataFrame(doListDataSets(internalClient))
         } catch {
           case e: Exception =>
             logger.error("Error while listDataSets", e)
@@ -76,7 +88,7 @@ class DacpServerProxy(
         }
       case path if path.startsWith("/listDataFrames") => {
         try {
-          response.sendDataFrame(doListDataFrames(request.getRequestURI()))
+          response.sendDataFrame(doListDataFrames(request.getRequestURI(), internalClient))
         } catch {
           case e: Exception =>
             logger.error("Error while listDataFrames", e)
@@ -85,7 +97,7 @@ class DacpServerProxy(
       }
       case "/listHostInfo" => {
         try {
-          response.sendDataFrame(doListHostInfo)
+          response.sendDataFrame(doListHostInfo(internalClient))
         } catch {
           case e: Exception =>
             logger.error("Error while listHostInfo", e)
@@ -121,6 +133,8 @@ object DacpServerProxy{
     override def getDocument(dataFrameName: String): DataFrameDocument = ???
 
     override def getStatistics(dataFrameName: String): DataFrameStatistics = ???
+
+    override def getDataFrameMetaData(dataFrameName: String, rdfModel: Model): Unit = ???
   }
   private val dataReceiver = new DataReceiver {
     override def receive(dataFrame: DataFrame): Unit = ???
