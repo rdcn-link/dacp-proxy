@@ -36,6 +36,7 @@ object ServerProxyDemo extends TestDemoProvider {
       }, provider.authProvider)
 
     DacpServerProxy.start(baseUrl, proxyConfig)
+//    DacpServerProxy.start("dacp://10.0.90.43:3102", proxyConfig)
   }
 }
 
