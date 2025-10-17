@@ -32,26 +32,19 @@ object ClientDemo {
 
   def main(args: Array[String]): Unit = {
     // 通过用户名密码非加密连接FairdClient
-        val dcp: DacpClientProxy = DacpClientProxy.connect("dacp://0.0.0.0:3102", UsernamePassword("admin@instdb.cn", "admin001"));
+        val dcp: DacpClientProxy = DacpClientProxy.connect("dacp://10.0.82.210:3102", UsernamePassword("15117913512@126.com", "admin#U*Q!."));
     // 通过用户名密码tls加密连接FairdClient
     //  val dcp: DacpClientProxy = DacpClient.connectTLS("dacp://localhost:3102", tlsFile, UsernamePassword("admin@instdb.cn", "admin001"))
     // 匿名连接FairdClient
     //    val dcAnonymous: DacpClientProxy = DacpClient.connect("dacp://localhost:3102", Credentials.ANONYMOUS());
 
-    //获得所有的数据集名称
-    println("--------------打印数据集列表--------------")
-    val dataSetNames: Seq[String] = dcp.listDataSetNames()
-    dataSetNames.foreach(println)
+    dcp.listDataSetNames().foreach { dsName =>
+      println(dsName)
+      dcp.listDataFrameNames(dsName).foreach{dfName =>
+        println(dfName)
+        dcp.get(s"dacp://10.0.90.43:3102/$dfName").foreach(println)}
+    }
 
-    //获得指定数据集的所有的数据帧名称
-    println("--------------打印数据集 csv 所有数据帧名称--------------")
-    val frameNames: Seq[String] = dcp.listDataFrameNames("csv")
-    frameNames.foreach(println)
-
-    //获得指定数据集的元数据信息
-    println("--------------打印数据集 csv 的元数据信息--------------")
-    val metaData: Model = dcp.getDataSetMetaData("csv")
-    metaData.write(System.out, "TURTLE")
 
     //获得host基本信息
     println("--------------打印host基本信息--------------")
@@ -238,11 +231,10 @@ object ClientDemo {
     complexDfs.map().foreach { case (_, df) => df.limit(3).foreach(row => println(row)) }
 
     //可以通过put操作向服务器上传DataFrame
-    val dataStreamSource: DataStreamSource = provider.dataProvider.getDataStreamSource("/bin")
+    val dataStreamSource: DataStreamSource = provider.dataProvider.getDataStreamSource("/csv/data_1.csv")
     val dataFrame: DataFrame = DefaultDataFrame(dataStreamSource.schema, dataStreamSource.iterator)
     val batchSize = 100
-    dcp.put(dataFrame, batchSize)
-
-
+    val msg = dcp.put(dataFrame, batchSize)
+    println(msg)
   }
 }

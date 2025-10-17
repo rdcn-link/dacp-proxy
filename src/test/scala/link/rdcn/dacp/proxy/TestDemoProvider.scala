@@ -6,6 +6,7 @@ import link.rdcn.dacp.user.{AuthProvider, DataOperationType}
 import link.rdcn.struct.ValueType.{DoubleType, IntType, LongType}
 import link.rdcn.struct._
 import link.rdcn.user._
+import org.apache.jena.rdf.model.Model
 
 import java.io.File
 import java.nio.file.Paths
@@ -98,6 +99,7 @@ class TestDemoProvider(baseDirString: String = demoBaseDir, subDirString: String
       Paths.get(baseDir, relativePath).toString
     }
 
+    override def getDataFrameMetaData(dataFrameName: String, rdfModel: Model): Unit = ???
   }
 
   // 默认构造函数

@@ -9,7 +9,7 @@ import link.rdcn.dacp.server.{CookRequest, CookResponse, DacpServer}
 import link.rdcn.dacp.struct.{DataFrameDocument, DataFrameStatistics}
 import link.rdcn.dacp.user.{AuthProvider, DataOperationType}
 import link.rdcn.server.{ActionRequest, ActionResponse, GetRequest, GetResponse}
-import link.rdcn.struct.{DataFrame, DataStreamSource, DefaultDataFrame, StructType}
+import link.rdcn.struct.{DataFrame, DataStreamSource, DefaultDataFrame}
 import link.rdcn.user.{Credentials, UserPrincipal}
 import org.apache.jena.rdf.model.Model
 
@@ -44,15 +44,15 @@ class DacpServerProxy(
     response.sendDataFrame(DefaultDataFrame(schema._1, schema._2))
   }
 
-  override def doListDataSets(): DataFrame = {
+  def doListDataSets(internalClient: DacpClient): DataFrame = {
     internalClient.get(targetServerUrl + "/listDataSets")
   }
 
-  override def doListDataFrames(listDataFrameUrl: String): DataFrame = {
+  def doListDataFrames(listDataFrameUrl: String, internalClient: DacpClient): DataFrame = {
     internalClient.get(targetServerUrl + listDataFrameUrl)
   }
 
-  override def doListHostInfo(): DataFrame = {
+  def doListHostInfo(internalClient: DacpClient): DataFrame = {
     internalClient.get(targetServerUrl + "/listHostInfo")
   }
 
@@ -109,7 +109,6 @@ class DacpServerProxy(
         val newClient: DacpClient = DacpClient.connect(targetServerUrl, userPrincipal.credentials)
         val df:RemoteDataFrameProxy = newClient.get(targetServerUrl + otherPath).asInstanceOf[RemoteDataFrameProxy]
         response.sendDataFrame(DefaultDataFrame(df.schema,df.getRows(df.operation.toJsonString)._2))
-        println("end")
     }
   }
 }
@@ -137,7 +136,9 @@ object DacpServerProxy{
     override def getDataFrameMetaData(dataFrameName: String, rdfModel: Model): Unit = ???
   }
   private val dataReceiver = new DataReceiver {
-    override def receive(dataFrame: DataFrame): Unit = ???
+    override def receive(dataFrame: DataFrame): Unit = {
+      Thread.sleep(2000)
+    }
   }
 }
 

@@ -27,7 +27,6 @@ trait TestBase {
 }
 
 object TestBase {
-
   // 文件数量配置
   val binFileCount = 3
   val csvFileCount = 3

@@ -17,6 +17,7 @@ import link.rdcn.struct.ValueType.{DoubleType, LongType}
 import link.rdcn.struct.{BlobRegistry, DataFrame, StructType}
 import link.rdcn.user.{Credentials, UserPrincipal, UsernamePassword}
 import link.rdcn.util.DataUtils
+import org.apache.jena.rdf.model.Model
 import org.junit.jupiter.api.{AfterAll, BeforeAll}
 
 import java.io.File
@@ -29,7 +30,6 @@ trait TestProvider {
 object TestProvider {
   proxyConfig = ConfigLoader.init(Paths.get(getResourcePath("proxy")).toString)
   fairdConfig = ConfigLoader.init(Paths.get(getResourcePath("")).toString)
-
 
   val prefix = "dacp://" + ConfigLoader.fairdConfig.hostPosition + ":" + ConfigLoader.fairdConfig.hostPort
   val permissions = Map(
@@ -105,6 +105,8 @@ object TestProvider {
     override val dataFramePaths: (String => String) = (relativePath: String) => {
       Paths.get(getOutputDir("test_output"), relativePath).toString
     }
+
+    override def getDataFrameMetaData(dataFrameName: String, rdfModel: Model): Unit = ???
   }
   val dataReceiver: DataReceiver = new DataReceiver {
 
