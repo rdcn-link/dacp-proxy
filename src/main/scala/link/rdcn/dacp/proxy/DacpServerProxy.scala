@@ -1,5 +1,6 @@
 package link.rdcn.dacp.proxy
 
+import link.rdcn.client.RemoteDataFrameProxy
 import link.rdcn.dacp.FairdConfig
 import link.rdcn.dacp.client.DacpClient
 import link.rdcn.dacp.provider.DataProvider
@@ -8,7 +9,7 @@ import link.rdcn.dacp.server.{CookRequest, CookResponse, DacpServer}
 import link.rdcn.dacp.struct.{DataFrameDocument, DataFrameStatistics}
 import link.rdcn.dacp.user.{AuthProvider, DataOperationType}
 import link.rdcn.server.{ActionRequest, ActionResponse, GetRequest, GetResponse}
-import link.rdcn.struct.{DataFrame, DataStreamSource, DefaultDataFrame, StructType}
+import link.rdcn.struct.{DataFrame, DataStreamSource, DefaultDataFrame}
 import link.rdcn.user.{Credentials, UserPrincipal}
 import org.apache.jena.rdf.model.Model
 
@@ -44,15 +45,15 @@ class DacpServerProxy(
   }
 
   def doListDataSets(internalClient: DacpClient): DataFrame = {
-    internalClient.get(getBaseUrl() + "/listDataSets")
+    internalClient.get(targetServerUrl + "/listDataSets")
   }
 
   def doListDataFrames(listDataFrameUrl: String, internalClient: DacpClient): DataFrame = {
-    internalClient.get(getBaseUrl() + listDataFrameUrl)
+    internalClient.get(targetServerUrl + listDataFrameUrl)
   }
 
   def doListHostInfo(internalClient: DacpClient): DataFrame = {
-    internalClient.get(getBaseUrl() + "/listHostInfo")
+    internalClient.get(targetServerUrl + "/listHostInfo")
   }
 
   override def doAction(request: ActionRequest, response: ActionResponse): Unit = {
@@ -104,7 +105,10 @@ class DacpServerProxy(
         }
       }
       case otherPath =>
-        response.sendDataFrame(internalClient.get(getBaseUrl() + otherPath))
+        val userPrincipal = request.getUserPrincipal().asInstanceOf[ProxyUserPrincipal]
+        val newClient: DacpClient = DacpClient.connect(targetServerUrl, userPrincipal.credentials)
+        val df:RemoteDataFrameProxy = newClient.get(targetServerUrl + otherPath).asInstanceOf[RemoteDataFrameProxy]
+        response.sendDataFrame(DefaultDataFrame(df.schema,df.getRows(df.operation.toJsonString)._2))
     }
   }
 }
@@ -132,7 +136,9 @@ object DacpServerProxy{
     override def getDataFrameMetaData(dataFrameName: String, rdfModel: Model): Unit = ???
   }
   private val dataReceiver = new DataReceiver {
-    override def receive(dataFrame: DataFrame): Unit = ???
+    override def receive(dataFrame: DataFrame): Unit = {
+      Thread.sleep(2000)
+    }
   }
 }
 
